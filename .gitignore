@@ -2,6 +2,11 @@
 cfscanner
 cfscanner-*
 *.exe
+CFScanner
+
+# Release files
+.goreleaser.yaml
+goreleaser.yaml
 
 # Configuration files (use dummy configs)
 config.real
