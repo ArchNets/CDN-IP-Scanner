@@ -126,8 +126,10 @@ func scanner(ip string, Config config.Configuration, Worker config.Worker, worke
 					Message: "Fronting test failed",
 				}
 				PrintLog(ld)
-				// Log retry attempt without affecting progress
-				UpdateTUIRetryAttempt(workerID, ip, "Fronting test failed")
+				// Log retry attempt only if there are multiple tries
+				if Config.Config.NTries > 1 {
+					UpdateTUIRetryAttempt(workerID, ip, "Fronting test failed")
+				}
 				continue // Try again instead of returning nil
 			}
 		} else {
@@ -143,12 +145,14 @@ func scanner(ip string, Config config.Configuration, Worker config.Worker, worke
 			if m == nil {
 				// Download failed - update worker status
 				UpdateTUIWorkerStatus(workerID, ip, "Download failed")
-				// Log retry attempt without affecting progress
-				errorMsg := lastScanError
-				if errorMsg == "" {
-					errorMsg = "Download failed"
+				// Log retry attempt only if there are multiple tries
+				if Config.Config.NTries > 1 {
+					errorMsg := lastScanError
+					if errorMsg == "" {
+						errorMsg = "Download failed"
+					}
+					UpdateTUIRetryAttempt(workerID, ip, errorMsg)
 				}
-				UpdateTUIRetryAttempt(workerID, ip, errorMsg)
 				continue // Try again instead of returning
 			}
 			// Download succeeded - but we still need to test upload if enabled
@@ -161,12 +165,14 @@ func scanner(ip string, Config config.Configuration, Worker config.Worker, worke
 				if m2 == nil {
 					// Upload failed - update worker status
 					UpdateTUIWorkerStatus(workerID, ip, "Upload failed")
-					// Log retry attempt without affecting progress
-					errorMsg := lastScanError
-					if errorMsg == "" {
-						errorMsg = "Upload failed"
+					// Log retry attempt only if there are multiple tries
+					if Config.Config.NTries > 1 {
+						errorMsg := lastScanError
+						if errorMsg == "" {
+							errorMsg = "Upload failed"
+						}
+						UpdateTUIRetryAttempt(workerID, ip, errorMsg)
 					}
-					UpdateTUIRetryAttempt(workerID, ip, errorMsg)
 					continue // Try again instead of returning
 				}
 				// Upload succeeded - but we still need to complete all retry attempts
@@ -280,9 +286,6 @@ func downloader(ip string, Download *config.Download, proxies map[string]string,
 	}
 	downloadSpeedKBps := downloadSpeed / 8 * 1000
 
-	fmt.Printf("DEBUG: IP %s - Download speed: %.2f kBps (required: %.2f kBps), Latency: %.2fs (max: %.2fs)\n",
-		ip, downloadSpeedKBps, Download.MinDlSpeed, downloadLatency, Download.MaxDlLatency)
-
 	if downloadSpeedKBps <= Download.MinDlSpeed {
 		lastScanError = fmt.Sprintf("Download too slow: %.2f kBps < %.2f kBps", downloadSpeedKBps, Download.MinDlSpeed)
 		ld := logger.ScannerManage{
@@ -315,10 +318,14 @@ func scan(Config *config.Configuration, worker *config.Worker, ip string, worker
 	// Notify TUI of scan result with specific error if available
 	if res != nil {
 		UpdateTUI(workerID, ip, true)
-	}
-	// Note: Failed scans are already logged by retry attempts, no need for final error log
-
-	if res == nil {
+	} else {
+		// Send final failure update for progress tracking
+		errorMsg := lastScanError
+		if errorMsg == "" {
+			errorMsg = "All retry attempts failed"
+		}
+		UpdateTUIWithError(workerID, ip, false, errorMsg)
+		lastScanError = "" // Reset for next scan
 		return
 	}
 

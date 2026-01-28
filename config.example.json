@@ -6,6 +6,6 @@
 	"wsHeaderPath": "/your-path",
 	"sni": "your-sni.example.com",
 	"frontingTimeout": 5.0,
-	"nTries": 3,
+	"nTries": 1,
 	"writer": "csv"
 }
