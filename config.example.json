@@ -1,0 +1,7 @@
+{
+	"id": "your-uuid-here",
+	"host": "your-server.example.com", 
+	"port": "443",
+	"path": "/your-path",
+	"serverName": "your-sni.example.com"
+}

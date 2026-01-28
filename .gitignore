@@ -1,0 +1,70 @@
+# Build outputs
+cfscanner
+cfscanner-*
+*.exe
+
+# Configuration files (use dummy configs)
+config.real
+*.json
+!config.example.json
+
+# Results and output files
+result/
+*.csv
+*.txt
+*_result.*
+*_final.*
+
+# Xray configuration files
+config/
+xray-*.json
+
+# Log files
+*.log
+logs/
+
+# Test files with real data
+ips.txt
+range.txt
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go files
+vendor/
+*.test
+*.out
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Private keys and certificates
+*.pem
+*.key
+*.crt
+*.p12
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Personal notes
+notes.md
+TODO.md
+PRIVATE.md
