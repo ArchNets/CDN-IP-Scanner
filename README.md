@@ -42,14 +42,20 @@ To see all available options:
 ### Basic Examples
 
 ```bash
-# Basic scan with config file
-./CFScanner --config config.json --subnets ips.txt
+# Load configuration file and load subnet file for scanning
+./CFScanner --config config.real --subnets ips.txt
 
-# Multi-threaded scan with upload testing  
-./CFScanner --config config.json --subnets range.txt --threads 8 --upload
+# Load configuration file and use input cidr and begin scanning ips with 4 threads
+./CFScanner --config config.real --subnets 172.20.0.0/24 --threads 4
 
-# Scan with custom speed and latency limits
-./CFScanner --config config.json --subnets ips.txt --download-speed 100 --download-latency 1.5
+# Load configurations file with subnet file and doing upload test
+./CFScanner --config config.real --subnets 172.20.0.0/24 --threads 4 --upload
+
+# Load configurations file with subnet file and testing each ip 3 times
+./CFScanner --config config.real --subnets 172.20.0.0/24 --threads 4 --tries 3
+
+# Load configurations file with subnet file and using vpn mode
+./CFScanner --config config.real --subnets 172.20.0.0/24 --vpn
 ```
 
 ### Configuration
@@ -60,7 +66,8 @@ Create a `config.json` file:
   "id": "your-uuid-here",
   "host": "your-server.example.com", 
   "port": "443",
-  "path": "/your-path"
+  "path": "/your-path",
+  "serverName": "your-sni.example.com"
 }
 ```
 
