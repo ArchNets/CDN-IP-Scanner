@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -175,20 +176,63 @@ func inc(ip net.IP) {
 	}
 }
 
+var (
+	portMutex    sync.Mutex
+	usedPorts    = make(map[int]bool)
+	lastPortTime = time.Now()
+)
+
 func GetFreePort() int {
-	l, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		log.Fatal(err)
+	portMutex.Lock()
+	defer portMutex.Unlock()
+
+	// Add small delay between port allocations to prevent race conditions
+	elapsed := time.Since(lastPortTime)
+	if elapsed < 50*time.Millisecond {
+		time.Sleep(50*time.Millisecond - elapsed)
 	}
-	defer func(l net.Listener) {
-		err := l.Close()
+	lastPortTime = time.Now()
+
+	maxAttempts := 100
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-
+			log.Printf("Failed to find free port (attempt %d): %v", attempt+1, err)
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
-	}(l)
 
-	addr := l.Addr().(*net.TCPAddr)
-	return addr.Port
+		addr := l.Addr().(*net.TCPAddr)
+		port := addr.Port
+		
+		// Close the listener but keep track of the port
+		l.Close()
+		
+		// Check if this port was recently used
+		if usedPorts[port] {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		
+		// Mark port as used
+		usedPorts[port] = true
+		
+		// Clean up old ports after 30 seconds
+		go func(p int) {
+			time.Sleep(30 * time.Second)
+			portMutex.Lock()
+			delete(usedPorts, p)
+			portMutex.Unlock()
+		}(port)
+		
+		// Additional delay to ensure port is released by OS
+		time.Sleep(100 * time.Millisecond)
+		
+		return port
+	}
+
+	log.Fatal("Failed to find free port after maximum attempts")
+	return 0
 }
 
 // func timeDurationToInt(n time.Duration) int64 {
