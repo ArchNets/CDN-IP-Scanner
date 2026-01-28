@@ -37,6 +37,14 @@ type ScanUpdate struct {
 	WorkerID int
 	IP       string
 	Success  bool
+	ErrorMsg string // Error message for failed scans
+}
+
+// RetryAttempt is a message for logging retry attempts without affecting progress
+type RetryAttempt struct {
+	WorkerID int
+	IP       string
+	ErrorMsg string
 }
 
 // WorkerUpdate is a message for updating worker status
@@ -162,13 +170,32 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		} else {
 			m.stats.FailedIPs++
+			failMessage := "✗ Failed"
+			if msg.ErrorMsg != "" {
+				failMessage = fmt.Sprintf("✗ %s", msg.ErrorMsg)
+			}
 			m.addLog(LogEntry{
 				Timestamp: time.Now(),
 				IP:        msg.IP,
-				Message:   "✗ Failed",
+				Message:   failMessage,
 				Type:      LogFail,
 			})
 		}
+		m.mu.Unlock()
+
+	case RetryAttempt:
+		// Log retry attempt without affecting scan progress counters
+		m.mu.Lock()
+		failMessage := "✗ Retry attempt failed"
+		if msg.ErrorMsg != "" {
+			failMessage = fmt.Sprintf("✗ %s", msg.ErrorMsg)
+		}
+		m.addLog(LogEntry{
+			Timestamp: time.Now(),
+			IP:        msg.IP,
+			Message:   failMessage,
+			Type:      LogFail,
+		})
 		m.mu.Unlock()
 
 	case WorkerUpdate:
@@ -259,8 +286,8 @@ func (m *Model) View() string {
 		rightColumn := []string{}
 
 		// Define order and group items
-		leftItems := []string{"host", "path", "port", "userid", "threads"}
-		rightItems := []string{"download_speed", "upload_speed", "upload_test", "xray_core", "writer"}
+		leftItems := []string{"host", "path", "port", "userid", "threads", "tries"}
+		rightItems := []string{"download_speed", "upload_speed", "upload_test", "fronting_test", "xray_core", "writer"}
 
 		for _, key := range leftItems {
 			if value, exists := m.config[key]; exists {

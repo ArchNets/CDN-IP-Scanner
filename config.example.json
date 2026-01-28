@@ -1,7 +1,11 @@
 {
-	"id": "your-uuid-here",
-	"host": "your-server.example.com", 
-	"port": "443",
-	"path": "/your-path",
-	"serverName": "your-sni.example.com"
+	"localPort": 10808,
+	"addressPort": "443",
+	"userId": "your-uuid-here",
+	"wsHeaderHost": "your-server.example.com",
+	"wsHeaderPath": "/your-path",
+	"sni": "your-sni.example.com",
+	"frontingTimeout": 5.0,
+	"nTries": 3,
+	"writer": "csv"
 }

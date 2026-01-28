@@ -22,6 +22,11 @@ func DownloadSpeedTest(nBytes int, proxies map[string]string, timeout time.Durat
 	// set proxies to req header
 	for _, v := range proxies {
 		proxy, _ = url.Parse(v)
+		fmt.Printf("DEBUG: Using proxy: %s\n", v)
+	}
+
+	if len(proxies) == 0 {
+		fmt.Printf("DEBUG: No proxies configured - direct connection!\n")
 	}
 
 	// Create request

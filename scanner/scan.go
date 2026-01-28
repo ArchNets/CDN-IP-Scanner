@@ -25,6 +25,9 @@ func PrintLog(ld logger.ScannerManage) {
 
 var results [][]string
 
+// Global variable to capture last scan error
+var lastScanError string
+
 var (
 	downloadSpeed   float64
 	downloadLatency float64
@@ -52,7 +55,7 @@ var (
 
 // const WorkerCount = 48
 
-func scanner(ip string, Config config.Configuration, Worker config.Worker) *ScanResult {
+func scanner(ip string, Config config.Configuration, Worker config.Worker, workerID int) *ScanResult {
 
 	result := &ScanResult{
 		IP: ip,
@@ -109,69 +112,101 @@ func scanner(ip string, Config config.Configuration, Worker config.Worker) *Scan
 	}
 
 	for tryIdx := 0; tryIdx < Config.Config.NTries; tryIdx++ {
-		// Step 1: Connectivity test - check if connection works at all
-		connectivityOK, connErr := speedtest.ConnectivityTest(proxies, 5)
-		if !connectivityOK || connErr != nil {
-			ld := logger.ScannerManage{
-				IP:      ip,
-				Status:  logger.FailStatus,
-				Message: "Connectivity check failed",
-				Cause:   fmt.Sprintf("%v", connErr),
-			}
-			PrintLog(ld)
-			return nil
-		}
-
-		ldConn := logger.ScannerManage{
-			IP:      ip,
-			Status:  logger.InfoStatus,
-			Message: "Connectivity OK, proceeding to speed test",
-		}
-		PrintLog(ldConn)
-
-		// Fronting test
+		// Step 1: Connectivity test
 		if Config.Config.DoFrontingTest {
+			// Fronting test (connectivity + domain fronting)
+			UpdateTUIWorkerStatus(workerID, ip, "Testing fronting...")
+
 			fronting := speedtest.FrontingTest(ip, proxies, time.Duration(Config.Config.FrontingTimeout))
-
 			if !fronting {
-				return nil
+				lastScanError = "Fronting test failed"
+				ld := logger.ScannerManage{
+					IP:      ip,
+					Status:  logger.FailStatus,
+					Message: "Fronting test failed",
+				}
+				PrintLog(ld)
+				// Log retry attempt without affecting progress
+				UpdateTUIRetryAttempt(workerID, ip, "Fronting test failed")
+				continue // Try again instead of returning nil
 			}
+		} else {
+			// Basic connectivity test via download attempt
+			UpdateTUIWorkerStatus(workerID, ip, "Testing connectivity...")
+			// Instead of fronting test, do a quick VPN connectivity test
+			// by attempting a small download through the VPN to verify the VLESS+XHTTP connection
 		}
 
-		// Check download speed
+		// Step 2: Download speed test
+		UpdateTUIWorkerStatus(workerID, ip, "Testing download...")
 		if m, done := downloader(ip, Download, proxies, result); done {
-			return m
+			if m == nil {
+				// Download failed - update worker status
+				UpdateTUIWorkerStatus(workerID, ip, "Download failed")
+				// Log retry attempt without affecting progress
+				errorMsg := lastScanError
+				if errorMsg == "" {
+					errorMsg = "Download failed"
+				}
+				UpdateTUIRetryAttempt(workerID, ip, errorMsg)
+				continue // Try again instead of returning
+			}
+			// Download succeeded - but we still need to test upload if enabled
 		}
 
-		// upload speed test
+		// Step 3: Upload speed test
 		if Config.Config.DoUploadTest {
+			UpdateTUIWorkerStatus(workerID, ip, "Testing upload...")
 			if m2, done2 := uploader(ip, Upload, proxies, result); done2 {
-				return m2
+				if m2 == nil {
+					// Upload failed - update worker status
+					UpdateTUIWorkerStatus(workerID, ip, "Upload failed")
+					// Log retry attempt without affecting progress
+					errorMsg := lastScanError
+					if errorMsg == "" {
+						errorMsg = "Upload failed"
+					}
+					UpdateTUIRetryAttempt(workerID, ip, errorMsg)
+					continue // Try again instead of returning
+				}
+				// Upload succeeded - but we still need to complete all retry attempts
 			}
 		}
 
+		// If we reach here, this attempt was successful
+		// Log the successful attempt
 		dlTimeLatency := math.Round(downloadLatency * 1000)
 		upTimeLatency := math.Round(uploadLatency * 1000)
 
 		ld := logger.ScannerManage{
 			IP:     ip,
 			Status: logger.InfoStatus,
-			Message: fmt.Sprintf("Download: %7.4fmbps , Upload: %7.4fmbps , UP_Latency: %vms , DL_Latency: %vms",
-				downloadSpeed, uploadSpeed, upTimeLatency, dlTimeLatency),
+			Message: fmt.Sprintf("Attempt %d/%d - Download: %7.4fmbps , Upload: %7.4fmbps , UP_Latency: %vms , DL_Latency: %vms",
+				tryIdx+1, Config.Config.NTries, downloadSpeed, uploadSpeed, upTimeLatency, dlTimeLatency),
 		}
 		PrintLog(ld)
+
+		// For tries > 1, we need ALL attempts to succeed
+		// Only return success if this was the final attempt
+		if tryIdx == Config.Config.NTries-1 {
+			// All attempts completed successfully
+			return result
+		}
+		// Continue to next attempt to verify consistency
 	}
 
-	return result
+	// All retry attempts exhausted, return nil to indicate failure
+	return nil
 }
 
 func uploader(ip string, Upload *config.Upload, proxies map[string]string, result *ScanResult) (*ScanResult, bool) {
 	var err error
 	nBytes := Upload.MinUlSpeed * 1000 * Upload.MaxUlTime
 	uploadSpeed, uploadLatency, err = speedtest.UploadSpeedTest(int(nBytes), proxies,
-		time.Duration(Upload.MaxUlLatency))
+		time.Duration(Upload.MaxUlLatency)*time.Second)
 
 	if err != nil {
+		lastScanError = fmt.Sprintf("Upload: %v", err)
 		ld := logger.ScannerManage{
 			IP:      ip,
 			Status:  logger.FailStatus,
@@ -216,9 +251,10 @@ func downloader(ip string, Download *config.Download, proxies map[string]string,
 	var err error
 
 	downloadSpeed, downloadLatency, err = speedtest.DownloadSpeedTest(int(nBytes), proxies,
-		time.Duration(Download.MaxDlLatency))
+		time.Duration(Download.MaxDlLatency)*time.Second)
 
 	if err != nil {
+		lastScanError = fmt.Sprintf("Download: %v", err)
 		ld := logger.ScannerManage{
 			IP:      ip,
 			Status:  logger.FailStatus,
@@ -231,6 +267,7 @@ func downloader(ip string, Download *config.Download, proxies map[string]string,
 	}
 
 	if downloadLatency >= Download.MaxDlLatency {
+		lastScanError = fmt.Sprintf("High download latency: %.2fs > %.2fs", downloadLatency, Download.MaxDlLatency)
 		ld := logger.ScannerManage{
 			IP:     ip,
 			Status: logger.FailStatus,
@@ -243,7 +280,11 @@ func downloader(ip string, Download *config.Download, proxies map[string]string,
 	}
 	downloadSpeedKBps := downloadSpeed / 8 * 1000
 
+	fmt.Printf("DEBUG: IP %s - Download speed: %.2f kBps (required: %.2f kBps), Latency: %.2fs (max: %.2fs)\n",
+		ip, downloadSpeedKBps, Download.MinDlSpeed, downloadLatency, Download.MaxDlLatency)
+
 	if downloadSpeedKBps <= Download.MinDlSpeed {
+		lastScanError = fmt.Sprintf("Download too slow: %.2f kBps < %.2f kBps", downloadSpeedKBps, Download.MinDlSpeed)
 		ld := logger.ScannerManage{
 			IP:     ip,
 			Status: logger.FailStatus,
@@ -269,10 +310,13 @@ func scan(Config *config.Configuration, worker *config.Worker, ip string, worker
 	// Send worker update
 	UpdateWorker(workerID, ip)
 
-	res := scanner(ip, *Config, *worker)
+	res := scanner(ip, *Config, *worker, workerID)
 
-	// Notify TUI of scan result
-	UpdateTUI(workerID, ip, res != nil)
+	// Notify TUI of scan result with specific error if available
+	if res != nil {
+		UpdateTUI(workerID, ip, true)
+	}
+	// Note: Failed scans are already logged by retry attempts, no need for final error log
 
 	if res == nil {
 		return

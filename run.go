@@ -70,38 +70,67 @@ func run() *cobra.Command {
 				log.Fatal("Scanning Failed : No IP detected")
 			}
 
-			config := configuration.Configuration{
-				Config: configuration.ConfigStruct{
-					FrontingTimeout: frontingTimeout,
-					NTries:          nTries,
-					Writer:          writerType,
-					TestBool: configuration.TestBool{
-						DoUploadTest:   doUploadTest,
-						DoFrontingTest: fronting,
+			var config configuration.Configuration
+
+			if configPath != "" {
+				// Load config from file first
+				config = configuration.Configuration{}.CreateTestConfig(configPath)
+
+				// Override with explicit command line flags (preserving config file values for others)
+				config.Config.FrontingTimeout = frontingTimeout
+				config.Worker.Threads = threads
+				config.Worker.Vpn = Vpn
+				config.Worker.Download.MinDlSpeed = minDLSpeed
+				config.Worker.Download.MaxDlTime = maxDLTime
+				config.Worker.Download.MaxDlLatency = maxDLLatency
+				config.Worker.Upload.MinUlSpeed = minULSpeed
+				config.Worker.Upload.MaxUlTime = maxULTime
+				config.Worker.Upload.MaxUlLatency = maxULLatency
+				config.Config.TestBool.DoUploadTest = doUploadTest
+				config.Config.TestBool.DoFrontingTest = fronting
+				config.Shuffling = shuffle
+				config.LogLevel = Loglevel
+
+				// For nTries and writer, only override if explicitly set via command line
+				// (Check if they differ from their defaults)
+				if nTries != 1 { // Default for nTries is 1
+					config.Config.NTries = nTries
+				}
+				if writerType != "csv" { // Default for writer is "csv"
+					config.Config.Writer = writerType
+				}
+			} else {
+				// No config file, use command line values
+				config = configuration.Configuration{
+					Config: configuration.ConfigStruct{
+						FrontingTimeout: frontingTimeout,
+						NTries:          nTries,
+						Writer:          writerType,
+						TestBool: configuration.TestBool{
+							DoUploadTest:   doUploadTest,
+							DoFrontingTest: fronting,
+						},
 					},
-				},
 
-				Worker: configuration.Worker{
-					Threads: threads,
-					Vpn:     Vpn,
-					Download: struct {
-						MinDlSpeed   float64
-						MaxDlTime    float64
-						MaxDlLatency float64
-					}{MinDlSpeed: minDLSpeed, MaxDlTime: maxDLTime, MaxDlLatency: maxDLLatency},
-					Upload: struct {
-						MinUlSpeed   float64
-						MaxUlTime    float64
-						MaxUlLatency float64
-					}{MinUlSpeed: minULSpeed, MaxUlTime: maxULTime, MaxUlLatency: maxULLatency},
-				},
+					Worker: configuration.Worker{
+						Threads: threads,
+						Vpn:     Vpn,
+						Download: struct {
+							MinDlSpeed   float64
+							MaxDlTime    float64
+							MaxDlLatency float64
+						}{MinDlSpeed: minDLSpeed, MaxDlTime: maxDLTime, MaxDlLatency: maxDLLatency},
+						Upload: struct {
+							MinUlSpeed   float64
+							MaxUlTime    float64
+							MaxUlLatency float64
+						}{MinUlSpeed: minULSpeed, MaxUlTime: maxULTime, MaxUlLatency: maxULLatency},
+					},
 
-				Shuffling: shuffle,
-				LogLevel:  Loglevel,
+					Shuffling: shuffle,
+					LogLevel:  Loglevel,
+				}
 			}
-
-			// Create Configuration file & append vpn fields
-			config = config.CreateTestConfig(configPath)
 
 			// Set environment variable early for TUI mode detection
 			os.Setenv("CFSCANNER_TUI_MODE", "1")

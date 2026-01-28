@@ -26,7 +26,29 @@ func UpdateTUI(workerID int, ip string, success bool) {
 	tuiMu.Unlock()
 
 	if ctrl != nil {
-		ctrl.SendUpdate(workerID, ip, success)
+		ctrl.SendUpdate(workerID, ip, success, "")
+	}
+}
+
+// UpdateTUIWithError sends an update with error message to the TUI
+func UpdateTUIWithError(workerID int, ip string, success bool, errorMsg string) {
+	tuiMu.Lock()
+	ctrl := tuiCtrl
+	tuiMu.Unlock()
+
+	if ctrl != nil {
+		ctrl.SendUpdate(workerID, ip, success, errorMsg)
+	}
+}
+
+// UpdateTUIRetryAttempt sends a retry attempt log without affecting progress counters
+func UpdateTUIRetryAttempt(workerID int, ip string, errorMsg string) {
+	tuiMu.Lock()
+	ctrl := tuiCtrl
+	tuiMu.Unlock()
+
+	if ctrl != nil {
+		ctrl.SendRetryAttempt(workerID, ip, errorMsg)
 	}
 }
 
@@ -38,6 +60,17 @@ func UpdateWorker(workerID int, ip string) {
 
 	if ctrl != nil {
 		ctrl.SendWorkerUpdate(workerID, ip)
+	}
+}
+
+// UpdateTUIWorkerStatus updates the worker status in TUI with custom message
+func UpdateTUIWorkerStatus(workerID int, ip string, status string) {
+	tuiMu.Lock()
+	ctrl := tuiCtrl
+	tuiMu.Unlock()
+
+	if ctrl != nil {
+		ctrl.SendWorkerUpdate(workerID, fmt.Sprintf("%s - %s", ip, status))
 	}
 }
 
@@ -102,6 +135,18 @@ func StartWithTUI(C config.Configuration, Worker config.Worker, ipList []string,
 	go func() {
 		defer close(scanDone)
 		StartScanWithWorkerIDs(C, Worker, ipList, threadsCount)
+
+		// Scanning completed, send completion message and auto-exit
+		tuiController.SendStartupLog("")
+		tuiController.SendStartupLog("✅ SCANNING COMPLETED!")
+		tuiController.SendStartupLog("Results have been saved to the output file.")
+		tuiController.SendStartupLog("Press Q to exit or wait 10 seconds for auto-exit...")
+
+		// Auto-exit after 10 seconds
+		go func() {
+			time.Sleep(10 * time.Second)
+			tuiController.Quit()
+		}()
 	}()
 
 	// Start TUI in main thread (blocks until quit)

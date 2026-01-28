@@ -204,19 +204,19 @@ func GetFreePort() int {
 
 		addr := l.Addr().(*net.TCPAddr)
 		port := addr.Port
-		
+
 		// Close the listener but keep track of the port
 		l.Close()
-		
+
 		// Check if this port was recently used
 		if usedPorts[port] {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		
+
 		// Mark port as used
 		usedPorts[port] = true
-		
+
 		// Clean up old ports after 30 seconds
 		go func(p int) {
 			time.Sleep(30 * time.Second)
@@ -224,10 +224,10 @@ func GetFreePort() int {
 			delete(usedPorts, p)
 			portMutex.Unlock()
 		}(port)
-		
+
 		// Additional delay to ensure port is released by OS
 		time.Sleep(100 * time.Millisecond)
-		
+
 		return port
 	}
 

@@ -96,11 +96,15 @@ func (C Configuration) CreateTestConfig(configPath string) Configuration {
 		return Configuration{}
 	}
 
-	C.Config.UserId = jsonFileContent["id"].(string)
-	C.Config.WsHeaderHost = jsonFileContent["host"].(string)
-	C.Config.AddressPort = jsonFileContent["port"].(string)
-	//C.Config.Sni = jsonFileContent["serverName"].(string)
-	C.Config.WsHeaderPath = "/" + strings.TrimLeft(jsonFileContent["path"].(string), "/")
+	C.Config.UserId = jsonFileContent["userId"].(string)
+	C.Config.WsHeaderHost = jsonFileContent["wsHeaderHost"].(string)
+	C.Config.AddressPort = jsonFileContent["addressPort"].(string)
+	C.Config.Sni = jsonFileContent["sni"].(string)
+	C.Config.WsHeaderPath = jsonFileContent["wsHeaderPath"].(string)
+	C.Config.LocalPort = int(jsonFileContent["localPort"].(float64))
+	C.Config.FrontingTimeout = jsonFileContent["frontingTimeout"].(float64)
+	C.Config.NTries = int(jsonFileContent["nTries"].(float64))
+	C.Config.Writer = jsonFileContent["writer"].(string)
 
 	// Only print configuration if not using TUI
 	// TUI will handle its own configuration display
@@ -172,9 +176,10 @@ func (C Configuration) PrintInformationForTUI(tuiController interface{}) {
 		}
 		controller.SetConfig("upload_test", fmt.Sprintf("%v", C.Config.DoUploadTest))
 		controller.SetConfig("fronting_test", fmt.Sprintf("%v", C.Config.DoFrontingTest))
-		controller.SetConfig("download_speed", fmt.Sprintf("%.0f Mbps", C.Worker.Download.MinDlSpeed))
-		controller.SetConfig("upload_speed", fmt.Sprintf("%.0f Mbps", C.Worker.Upload.MinUlSpeed))
+		controller.SetConfig("download_speed", fmt.Sprintf("%.0f kBps", C.Worker.Download.MinDlSpeed))
+		controller.SetConfig("upload_speed", fmt.Sprintf("%.0f kBps", C.Worker.Upload.MinUlSpeed))
 		controller.SetConfig("threads", fmt.Sprintf("%d", C.Worker.Threads))
+		controller.SetConfig("tries", fmt.Sprintf("%d", C.Config.NTries))
 		controller.SetConfig("xray_core", fmt.Sprintf("%v", C.Worker.Vpn))
 		controller.SetConfig("writer", C.Config.Writer)
 	}

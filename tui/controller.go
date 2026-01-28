@@ -42,11 +42,18 @@ func (c *Controller) Start() error {
 }
 
 // SendUpdate sends a scan update to the TUI
-func (c *Controller) SendUpdate(workerID int, ip string, success bool) {
+func (c *Controller) SendUpdate(workerID int, ip string, success bool, errorMsg string) {
 	select {
-	case c.updateCh <- ScanUpdate{WorkerID: workerID, IP: ip, Success: success}:
+	case c.updateCh <- ScanUpdate{WorkerID: workerID, IP: ip, Success: success, ErrorMsg: errorMsg}:
 	default:
 		// Channel full, skip this update
+	}
+}
+
+// SendRetryAttempt sends a retry attempt log without affecting progress counters
+func (c *Controller) SendRetryAttempt(workerID int, ip string, errorMsg string) {
+	if c.program != nil {
+		c.program.Send(RetryAttempt{WorkerID: workerID, IP: ip, ErrorMsg: errorMsg})
 	}
 }
 
