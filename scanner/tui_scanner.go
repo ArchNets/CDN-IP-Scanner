@@ -3,7 +3,9 @@ package scanner
 import (
 	config "CFScanner/configuration"
 	"CFScanner/tui"
+	"fmt"
 	"sync"
+	"time"
 )
 
 // Global TUI controller and state
@@ -87,6 +89,13 @@ func IsTUIActive() bool {
 func StartWithTUI(C config.Configuration, Worker config.Worker, ipList []string, threadsCount int, tuiController *tui.Controller) {
 	// Set global TUI controller
 	SetTUIController(tuiController)
+
+	// Send startup info after a small delay to ensure TUI is ready
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		tuiController.SendStartupLog(fmt.Sprintf("[Xray 26.1.23 (Xray, Penetrates Everything.) Custom (go1.25.6 linux/amd64) A unified platform for anti-censorship.]"))
+		tuiController.SendStartupLog(fmt.Sprintf("Starting to scan %d IPS.", len(ipList)))
+	}()
 
 	// Start scanning in background
 	scanDone := make(chan struct{})

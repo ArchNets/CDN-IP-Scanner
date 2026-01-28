@@ -68,6 +68,8 @@ Total Threads : %v%v%v
 	)
 }
 
+// PrintInformationForTUI prints configuration info formatted for TUI logs
+
 func (C Configuration) CreateTestConfig(configPath string) Configuration {
 
 	if configPath == "" {
@@ -100,7 +102,9 @@ func (C Configuration) CreateTestConfig(configPath string) Configuration {
 	//C.Config.Sni = jsonFileContent["serverName"].(string)
 	C.Config.WsHeaderPath = "/" + strings.TrimLeft(jsonFileContent["path"].(string), "/")
 
-	C.PrintInformation()
+	// Only print configuration if not using TUI
+	// TUI will handle its own configuration display
+	// C.PrintInformation()
 	return C
 }
 
@@ -152,4 +156,26 @@ func CreateInterimResultsFile(interimResultsPath string, nTries int, writer stri
 
 	}
 	return nil
+}
+
+// PrintInformationForTUI sets configuration info in TUI
+func (C Configuration) PrintInformationForTUI(tuiController interface{}) {
+	// Type assertion to avoid import cycle
+	if controller, ok := tuiController.(interface{ SetConfig(string, string) }); ok {
+		controller.SetConfig("host", C.Config.WsHeaderHost)
+		controller.SetConfig("path", C.Config.WsHeaderPath)
+		controller.SetConfig("port", C.Config.AddressPort)
+		if len(C.Config.UserId) > 8 {
+			controller.SetConfig("userid", C.Config.UserId[:8]+"...")
+		} else {
+			controller.SetConfig("userid", C.Config.UserId)
+		}
+		controller.SetConfig("upload_test", fmt.Sprintf("%v", C.Config.DoUploadTest))
+		controller.SetConfig("fronting_test", fmt.Sprintf("%v", C.Config.DoFrontingTest))
+		controller.SetConfig("download_speed", fmt.Sprintf("%.0f Mbps", C.Worker.Download.MinDlSpeed))
+		controller.SetConfig("upload_speed", fmt.Sprintf("%.0f Mbps", C.Worker.Upload.MinUlSpeed))
+		controller.SetConfig("threads", fmt.Sprintf("%d", C.Worker.Threads))
+		controller.SetConfig("xray_core", fmt.Sprintf("%v", C.Worker.Vpn))
+		controller.SetConfig("writer", C.Config.Writer)
+	}
 }

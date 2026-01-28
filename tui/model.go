@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -62,6 +63,7 @@ type Model struct {
 	stopCh   chan struct{}
 	ctx      context.Context
 	cancel   context.CancelFunc
+	config   map[string]string
 }
 
 // LogEntry represents a log message
@@ -79,6 +81,7 @@ const (
 	LogSuccess
 	LogFail
 	LogError
+	LogStartup
 )
 
 // NewModel creates a new TUI model
@@ -101,11 +104,12 @@ func NewModel(totalIPs int64, workerCount int) Model {
 			Workers:      workers,
 			TotalWorkers: workerCount,
 		},
-		maxLogs: 12,
+		maxLogs: 15,
 		logs:    make([]LogEntry, 0),
 		stopCh:  make(chan struct{}),
 		ctx:     ctx,
 		cancel:  cancel,
+		config:  make(map[string]string),
 	}
 }
 
@@ -199,6 +203,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// AddStartupLog adds a startup configuration log entry
+func (m *Model) AddStartupLog(message string) {
+	m.mu.Lock()
+	m.addLog(LogEntry{
+		Timestamp: time.Now(),
+		IP:        "",
+		Message:   message,
+		Type:      LogStartup,
+	})
+	m.mu.Unlock()
+}
+
+// SetConfig sets a configuration key-value pair
+func (m *Model) SetConfig(key, value string) {
+	m.mu.Lock()
+	m.config[key] = value
+	m.mu.Unlock()
+}
+
 // View renders the UI
 func (m *Model) View() string {
 	if m.quitting {
@@ -221,7 +244,78 @@ func (m *Model) View() string {
 		Bold(true).
 		Foreground(purple).
 		MarginBottom(1).
-		Render("⚡ CF SCANNER - CLOUDFLARE IP SCANNER")
+		Render("⚡ CDN IP SCANNER - CLEAN IP DISCOVERY TOOL")
+
+	// Configuration section
+	configSection := ""
+	if len(m.config) > 0 {
+		configHeader := lipgloss.NewStyle().
+			Foreground(cyan).
+			Bold(true).
+			Render("📋 CONFIGURATION")
+
+		// Create compact side-by-side layout
+		leftColumn := []string{}
+		rightColumn := []string{}
+
+		// Define order and group items
+		leftItems := []string{"host", "path", "port", "userid", "threads"}
+		rightItems := []string{"download_speed", "upload_speed", "upload_test", "xray_core", "writer"}
+
+		for _, key := range leftItems {
+			if value, exists := m.config[key]; exists {
+				leftColumn = append(leftColumn, fmt.Sprintf("%s %-12s: %s",
+					lipgloss.NewStyle().Foreground(green).Render("●"),
+					lipgloss.NewStyle().Foreground(gray).Render(key),
+					lipgloss.NewStyle().Foreground(purple).Render(value)))
+			}
+		}
+
+		for _, key := range rightItems {
+			if value, exists := m.config[key]; exists {
+				rightColumn = append(rightColumn, fmt.Sprintf("%s %-12s: %s",
+					lipgloss.NewStyle().Foreground(green).Render("●"),
+					lipgloss.NewStyle().Foreground(gray).Render(key),
+					lipgloss.NewStyle().Foreground(purple).Render(value)))
+			}
+		}
+
+		// Combine columns side by side with proper spacing
+		maxLines := len(leftColumn)
+		if len(rightColumn) > maxLines {
+			maxLines = len(rightColumn)
+		}
+
+		combinedLines := []string{}
+		for i := 0; i < maxLines; i++ {
+			left := ""
+			right := ""
+			if i < len(leftColumn) {
+				left = leftColumn[i]
+			}
+			if i < len(rightColumn) {
+				right = rightColumn[i]
+			}
+
+			// Create properly formatted line with consistent spacing
+			if left != "" && right != "" {
+				// Calculate actual display width (without ANSI codes)
+				leftPlain := stripAnsi(left)
+				leftPadding := 45 - len(leftPlain) // Target width for left column
+				if leftPadding < 2 {
+					leftPadding = 2 // Minimum spacing
+				}
+				combinedLines = append(combinedLines, "  "+left+strings.Repeat(" ", leftPadding)+right)
+			} else if left != "" {
+				combinedLines = append(combinedLines, "  "+left)
+			} else if right != "" {
+				combinedLines = append(combinedLines, strings.Repeat(" ", 47)+right)
+			}
+		}
+
+		configContent := strings.Join(combinedLines, "\n")
+		configSection = configHeader + "\n" + configContent + "\n"
+	}
 
 	// Status
 	status := "🟢 SCANNING"
@@ -295,12 +389,12 @@ func (m *Model) View() string {
 	workerContent := ""
 	for i := 0; i < m.stats.TotalWorkers; i++ {
 		if worker, exists := m.stats.Workers[i]; exists {
-			isActive := time.Since(worker.LastSeen) < 3*time.Second
+			isActive := time.Since(worker.LastSeen) < 2*time.Second
 			statusIcon := "⚡"
 			statusColor := green
 			currentIP := worker.CurrentIP
 
-			if !isActive {
+			if !isActive || currentIP == "" {
 				statusIcon = "💤"
 				statusColor = gray
 				currentIP = "idle"
@@ -343,6 +437,8 @@ func (m *Model) View() string {
 			styledMsg = lipgloss.NewStyle().Foreground(red).Render(log.Message)
 		case LogError:
 			styledMsg = lipgloss.NewStyle().Foreground(red).Render(log.Message)
+		case LogStartup:
+			styledMsg = lipgloss.NewStyle().Foreground(cyan).Render(log.Message)
 		default:
 			styledMsg = lipgloss.NewStyle().Foreground(gray).Render(log.Message)
 		}
@@ -360,7 +456,7 @@ func (m *Model) View() string {
 		Foreground(gray).
 		Render("Controls:  [P] Pause/Resume  │  [Q/Esc] Quit")
 
-	return title + stats + workers + "\n" + workerContent + "\n" + activity + "\n" + logContent + "\n" + controls
+	return title + "\n" + configSection + stats + "\n" + workers + "\n" + workerContent + activity + "\n" + logContent + controls
 }
 
 // Helper functions
@@ -375,7 +471,7 @@ func (m *Model) togglePause() tea.Cmd {
 }
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(time.Millisecond*200, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
 		return TickMsg(t)
 	})
 }
@@ -456,4 +552,42 @@ func (m *Model) GetStats() Stats {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.stats
+}
+
+// contains checks if a slice contains a string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// stripAnsi removes ANSI escape codes to calculate actual text width
+func stripAnsi(s string) string {
+	// Simple regex to remove ANSI codes - for width calculation only
+	ansiRegex := strings.NewReplacer(
+		"\033[0m", "", "\033[1m", "", "\033[22m", "",
+		"\033[31m", "", "\033[32m", "", "\033[33m", "",
+		"\033[34m", "", "\033[35m", "", "\033[36m", "",
+		"\033[37m", "", "\033[90m", "", "\033[91m", "",
+		"\033[92m", "", "\033[93m", "", "\033[94m", "",
+		"\033[95m", "", "\033[96m", "", "\033[97m", "",
+	)
+	// Remove common lipgloss color codes
+	result := ansiRegex.Replace(s)
+	// Remove any remaining escape sequences (basic pattern)
+	for strings.Contains(result, "\033[") {
+		start := strings.Index(result, "\033[")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], "m")
+		if end == -1 {
+			break
+		}
+		result = result[:start] + result[start+end+1:]
+	}
+	return result
 }

@@ -103,14 +103,21 @@ func run() *cobra.Command {
 			// Create Configuration file & append vpn fields
 			config = config.CreateTestConfig(configPath)
 
-			timer := time.Now()
-			if config.Worker.Vpn {
-				vpn.XRayVersion()
-			}
-			fmt.Printf("Starting to scan %v%d%v IPS.\n\n", utils.Colors.OKGREEN, numberIPS, utils.Colors.ENDC)
+			// Set environment variable early for TUI mode detection
+			os.Setenv("CFSCANNER_TUI_MODE", "1")
 
-			// Initialize TUI
+			timer := time.Now()
+
+			// Initialize TUI first
 			tuiController := tui.NewController(int64(numberIPS), threadsCount)
+
+			// Show version and configuration in TUI instead of stdout
+			// Show version and configuration in TUI instead of stdout
+			config.PrintInformationForTUI(tuiController)
+			if config.Worker.Vpn {
+				// Suppress Xray version output - it will be shown in TUI
+				vpn.XRayVersionQuiet()
+			}
 
 			// Begin scanning process with TUI
 			scanner.StartWithTUI(config, config.Worker, bigIPList, threadsCount, tuiController)

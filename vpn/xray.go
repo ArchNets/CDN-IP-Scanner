@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	// The following are necessary as they register handlers in their init functions.
 
@@ -104,13 +105,57 @@ func XRayInstance(configPath string) ScanWorker {
 		log.Fatal(err)
 	}
 
+	// Temporarily redirect stderr to suppress Xray warnings for TUI
+	var oldStderr *os.File
+	var devNull *os.File
+	// Check if TUI is active - simple check, we'll use an env var or similar
+	_, tuiActive := os.LookupEnv("CFSCANNER_TUI_MODE")
+	if tuiActive {
+		oldStderr = os.Stderr
+		devNull, _ = os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		os.Stderr = devNull
+
+		// Also redirect stdout temporarily to catch any console output
+		oldStdout := os.Stdout
+		os.Stdout = devNull
+		defer func() {
+			os.Stdout = oldStdout
+		}()
+	}
+
 	instance, err := core.New(config)
 	if err != nil {
+		// Restore stderr before logging error
+		if tuiActive && oldStderr != nil {
+			os.Stderr = oldStderr
+			if devNull != nil {
+				devNull.Close()
+			}
+		}
 		log.Fatal(err)
 	}
 
 	if err := instance.Start(); err != nil {
+		// Restore stderr before logging error
+		if tuiActive && oldStderr != nil {
+			os.Stderr = oldStderr
+			if devNull != nil {
+				devNull.Close()
+			}
+		}
 		log.Println("Failed to start XRay instance:", err)
+	}
+
+	// Restore stderr after Xray startup (with delay to catch late warnings)
+	if tuiActive && oldStderr != nil {
+		// Wait a bit to catch any delayed warnings
+		go func() {
+			time.Sleep(1 * time.Second)
+			os.Stderr = oldStderr
+			if devNull != nil {
+				devNull.Close()
+			}
+		}()
 	}
 
 	go func() {
@@ -133,6 +178,11 @@ func ProxyBind(listen string, port int) map[string]string {
 
 func XRayVersion() {
 	fmt.Println(core.VersionStatement())
+}
+
+func XRayVersionQuiet() {
+	// Suppress output for TUI mode
+	// TUI will handle displaying version information
 }
 
 func XRayReceiver(configPath string) (string, int, error) {

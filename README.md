@@ -32,96 +32,55 @@ This is an enhanced fork of [CFScanner](https://github.com/MortezaBashsiz/CFScan
 - **Progress tracking** with ETA calculations
 - **Universal CDN compatibility** for finding low latency IPs
 
-## Installation
-
-### Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/ArchNets/CDN-IP-Scanner.git
-cd CDN-IP-Scanner
-
-# Build for your platform
-go build -o cfscanner .
-```
-
-### Cross-Platform Builds
-
-```bash
-# Windows 64-bit
-GOOS=windows GOARCH=amd64 go build -o cfscanner-windows-x64.exe .
-
-# macOS Intel
-GOOS=darwin GOARCH=amd64 go build -o cfscanner-macos-intel .
-
-# macOS Apple Silicon
-GOOS=darwin GOARCH=arm64 go build -o cfscanner-macos-arm64 .
-```
-
 ## Usage
 
-### Basic Usage
+To see all available options:
+```bash
+./CFScanner -h
+```
+
+### Basic Examples
 
 ```bash
-# Scan CDN IP ranges with TUI interface
-./cfscanner scan --subnets "104.16.0.0/12" --threads 8
+# Basic scan with config file
+./CFScanner --config config.json --subnets ips.txt
 
-# Use with custom config for any CDN
-./cfscanner -c config.json --vpn -s ip_ranges.txt -t 16
+# Multi-threaded scan with upload testing  
+./CFScanner --config config.json --subnets range.txt --threads 8 --upload
+
+# Scan with custom speed and latency limits
+./CFScanner --config config.json --subnets ips.txt --download-speed 100 --download-latency 1.5
+```
+
+### Configuration
+
+Create a `config.json` file:
+```json
+{
+  "id": "your-uuid-here",
+  "host": "your-server.example.com", 
+  "port": "443",
+  "path": "/your-path"
+}
 ```
 
 ### TUI Controls
 
 - **P** - Pause/Resume scanning
-- **Q / Esc** - Quit scanner
+- **Q / Esc** - Quit scanner  
 - **Ctrl+C** - Force quit
-
-### Configuration
-
-Create a `config.json` file:
-
-```json
-{
-  "id": "your-uuid-here",
-  "host": "your-cdn-server.example.com",
-  "port": "443",
-  "path": "/your-path",
-  "serverName": "your-sni.example.com"
-}
-```
 
 ## TUI Interface
 
-```
-CDN IP SCANNER - CLEAN IP DISCOVERY
-                    SCANNING  [████████████░░░░░░] 
+![CFScanner TUI Interface](assets/image.png)
 
-Progress:     1,250 / 10,000  IPs  (12.5%)  |  Workers: 8/8
-Success Rate: 15.2%  (Hits: 190  Fails: 1,060)
-Speed:        45.3  IPs/sec  |  Elapsed: 27s  |  ETA: 3m 12s
+The TUI provides real-time monitoring with:
+- **Configuration Display** - Shows current settings in a compact format
+- **Live Progress** - Real-time scanning progress with ETA calculations
+- **Worker Status** - Individual worker threads with current IP being tested
+- **Activity Log** - Recent scan results with success/failure indicators
+- **Interactive Controls** - Pause/resume and quit functionality
 
-WORKERS
-Worker 1: 104.16.123.45    Worker 5: 172.67.89.12
-Worker 2: 104.16.124.67    Worker 6: 172.67.90.34
-Worker 3: 104.16.125.89    Worker 7: 172.67.91.56
-Worker 4: 104.16.126.01    Worker 8: 172.67.92.78
-
-RECENT ACTIVITY
-14:23:45  |  104.16.123.45  |  Success
-14:23:45  |  172.67.89.12   |  Failed
-14:23:46  |  104.16.124.67  |  Success
-```
-
-## Command Line Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `-c, --config` | Config file path | `-c config.json` |
-| `-s, --subnets` | IP ranges file or CIDR | `-s ranges.txt` |
-| `-t, --threads` | Number of workers | `-t 16` |
-| `--vpn` | Enable VPN mode | `--vpn` |
-| `--min-dl-speed` | Minimum download speed | `--min-dl-speed 100` |
-| `--max-dl-latency` | Maximum latency (seconds) | `--max-dl-latency 2` |
 
 ## Build from Source
 
@@ -147,11 +106,16 @@ cd CDN-IP-Scanner
 # Install dependencies
 go mod tidy
 
-# Build
-go build -o cfscanner .
+# Build with optimization
+go build -o CFScanner -trimpath -ldflags "-s -w -buildid=" .
+
+# Cross-platform builds
+GOOS=windows GOARCH=amd64 go build -o CFScanner-windows.exe -trimpath -ldflags "-s -w -buildid=" .
+GOOS=darwin GOARCH=amd64 go build -o CFScanner-macos-intel -trimpath -ldflags "-s -w -buildid=" .
+GOOS=darwin GOARCH=arm64 go build -o CFScanner-macos-arm64 -trimpath -ldflags "-s -w -buildid=" .
 
 # Run
-./cfscanner scan --help
+./CFScanner -h
 ```
 
 ## Key Improvements Over Original

@@ -25,8 +25,8 @@ func NewController(totalIPs int64, workerCount int) *Controller {
 		updateCh: make(chan ScanUpdate, 100),
 	}
 
-	// Create program without AltScreen to avoid corrupting output
-	ctrl.program = tea.NewProgram(ctrl.model)
+	// Create program with AltScreen for proper screen clearing
+	ctrl.program = tea.NewProgram(ctrl.model, tea.WithAltScreen())
 
 	return ctrl
 }
@@ -54,6 +54,20 @@ func (c *Controller) SendUpdate(workerID int, ip string, success bool) {
 func (c *Controller) SendWorkerUpdate(workerID int, ip string) {
 	if c.program != nil {
 		c.program.Send(WorkerUpdate{WorkerID: workerID, CurrentIP: ip})
+	}
+}
+
+// SendStartupLog sends a startup log message to the TUI
+func (c *Controller) SendStartupLog(message string) {
+	if c.model != nil {
+		c.model.AddStartupLog(message)
+	}
+}
+
+// SetConfig sets a configuration key-value pair
+func (c *Controller) SetConfig(key, value string) {
+	if c.model != nil {
+		c.model.SetConfig(key, value)
 	}
 }
 
