@@ -1,7 +1,7 @@
 # CDN IP Scanner - Clean IP Discovery Tool
 
-[![Xray-Core](https://img.shields.io/badge/Xray--Core-v26.1.23-blue)](https://github.com/XTLS/Xray-core)
-[![Go](https://img.shields.io/badge/Go-1.25.6-00ADD8)](https://golang.org/)
+[![Xray-Core](https://img.shields.io/badge/Xray--Core-v26.2.6-blue)](https://github.com/XTLS/Xray-core)
+[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green)](LICENSE)
 
 > **Universal CDN IP Scanner for finding clean and low latency IPs**
@@ -10,7 +10,7 @@ This is an enhanced fork of [CFScanner](https://github.com/MortezaBashsiz/CFScan
 
 ## What Makes This Fork Special
 
-**Latest Xray-Core v26.1.23** - Updated to the newest version with all security patches and performance improvements
+**Latest Xray-Core v26.2.6** - Updated to the newest version with all security patches and performance improvements
 
 **Modern TUI Interface** - Clean terminal interface with real-time statistics, worker status, and interactive controls
 
@@ -35,6 +35,7 @@ This is an enhanced fork of [CFScanner](https://github.com/MortezaBashsiz/CFScan
 ## Usage
 
 To see all available options:
+
 ```bash
 ./CFScanner -h
 ```
@@ -61,10 +62,11 @@ To see all available options:
 ### Configuration
 
 Create a `config.json` file:
+
 ```json
 {
   "id": "your-uuid-here",
-  "host": "your-server.example.com", 
+  "host": "your-server.example.com",
   "port": "443",
   "path": "/your-path",
   "serverName": "your-sni.example.com"
@@ -74,7 +76,7 @@ Create a `config.json` file:
 ### TUI Controls
 
 - **P** - Pause/Resume scanning
-- **Q / Esc** - Quit scanner  
+- **Q / Esc** - Quit scanner
 - **Ctrl+C** - Force quit
 
 ## TUI Interface
@@ -82,23 +84,23 @@ Create a `config.json` file:
 ![CFScanner TUI Interface](assets/image.png)
 
 The TUI provides real-time monitoring with:
+
 - **Configuration Display** - Shows current settings in a compact format
 - **Live Progress** - Real-time scanning progress with ETA calculations
 - **Worker Status** - Individual worker threads with current IP being tested
 - **Activity Log** - Recent scan results with success/failure indicators
 - **Interactive Controls** - Pause/resume and quit functionality
 
-
 ## Build from Source
 
 ### Requirements
 
-- Go 1.25.6 or later
+- Go 1.25.7 or later
 - Git
 
 ### Dependencies
 
-- **Xray-Core v26.1.23** - Latest version with XHTTP support
+- **Xray-Core v26.2.6** - Latest version with XHTTP support
 - **Bubble Tea** - Modern TUI framework
 - **Lipgloss** - Terminal styling
 - **Cobra** - CLI framework
@@ -114,15 +116,15 @@ cd CDN-IP-Scanner
 go mod tidy
 
 # Build with optimization
-go build -o CFScanner -trimpath -ldflags "-s -w -buildid=" .
+go build -o cfscanner -trimpath -ldflags "-s -w -buildid=" .
 
 # Cross-platform builds
-GOOS=windows GOARCH=amd64 go build -o CFScanner-windows.exe -trimpath -ldflags "-s -w -buildid=" .
-GOOS=darwin GOARCH=amd64 go build -o CFScanner-macos-intel -trimpath -ldflags "-s -w -buildid=" .
-GOOS=darwin GOARCH=arm64 go build -o CFScanner-macos-arm64 -trimpath -ldflags "-s -w -buildid=" .
+GOOS=windows GOARCH=amd64 go build -o cfscanner-windows.exe -trimpath -ldflags "-s -w -buildid=" .
+GOOS=darwin GOARCH=amd64 go build -o cfscanner-macos-intel -trimpath -ldflags "-s -w -buildid=" .
+GOOS=darwin GOARCH=arm64 go build -o cfscanner-macos-arm64 -trimpath -ldflags "-s -w -buildid=" .
 
 # Run
-./CFScanner -h
+./cfscanner -h
 ```
 
 ## Key Improvements Over Original

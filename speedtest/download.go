@@ -24,16 +24,13 @@ func DownloadSpeedTest(nBytes int, proxies map[string]string, timeout time.Durat
 		proxy, _ = url.Parse(v)
 	}
 
-	// Create request
-	req, err := http.NewRequest("GET", "https://speed.cloudflare.com/__down", nil)
+	// v2rayN style cachefly URL for fast reliable testing (no custom bytes needed, we read up to max timeout anyway)
+	targetUrl := "https://cachefly.cachefly.net/10mb.test"
+
+	req, err := http.NewRequest("GET", targetUrl, nil)
 	if err != nil {
 		return 0, 0, fmt.Errorf("error creating request: %v", err)
 	}
-
-	// Add bytes query parameter
-	q := req.URL.Query()
-	q.Add("bytes", strconv.Itoa(nBytes))
-	req.URL.RawQuery = q.Encode()
 
 	// Set up client
 	client := &http.Client{
@@ -41,20 +38,24 @@ func DownloadSpeedTest(nBytes int, proxies map[string]string, timeout time.Durat
 		Transport: &http.Transport{Proxy: http.ProxyURL(proxy)},
 	}
 
-	// Send request and write response to data slice
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, 0, fmt.Errorf("error sending request: %v", err)
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Errorf("error occured when closing response body: %v", err)
+	// Send request
+	resp, reqErr := client.Do(req)
+	if reqErr != nil || resp.StatusCode != 200 {
+		if resp != nil {
+			_ = resp.Body.Close()
 		}
-	}(resp.Body)
+		return 0, 0, fmt.Errorf("error sending request or bad status: %v", reqErr)
+	}
 
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	// Read up to nBytes
 	_, err = io.ReadFull(resp.Body, data)
-	if err != nil {
+	// io.ErrUnexpectedEOF or io.EOF might occur if the file is smaller than nBytes (like the 10mb fallback),
+	// but we still want to calculate the speed based on what we actually downloaded.
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		return 0, 0, fmt.Errorf("error reading response body: %v", err)
 	}
 

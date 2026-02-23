@@ -35,6 +35,7 @@ Minimum Download Speed : %v%v%v
 Maximum Download Time : %v%v%v
 Minimum Upload Speed : %v%v%v
 Maximum Upload Time : %v%v%v
+Test URL : %v%v%v
 Fronting Timeout : %v%v%v
 Maximum Download Latency : %v%v%v
 Maximum Upload Latency : %v%v%v
@@ -56,6 +57,7 @@ Total Threads : %v%v%v
 		utils.Colors.OKBLUE, C.Worker.Download.MaxDlTime, utils.Colors.ENDC,
 		utils.Colors.OKBLUE, C.Worker.Upload.MinUlSpeed, utils.Colors.ENDC,
 		utils.Colors.OKBLUE, C.Worker.Upload.MaxUlTime, utils.Colors.ENDC,
+		utils.Colors.OKBLUE, C.Config.TestUrl, utils.Colors.ENDC,
 		utils.Colors.OKBLUE, C.Config.FrontingTimeout, utils.Colors.ENDC,
 		utils.Colors.OKBLUE, C.Worker.Download.MaxDlLatency, utils.Colors.ENDC,
 		utils.Colors.OKBLUE, C.Worker.Upload.MaxUlLatency, utils.Colors.ENDC,
@@ -96,15 +98,75 @@ func (C Configuration) CreateTestConfig(configPath string) Configuration {
 		return Configuration{}
 	}
 
-	C.Config.UserId = jsonFileContent["userId"].(string)
-	C.Config.WsHeaderHost = jsonFileContent["wsHeaderHost"].(string)
-	C.Config.AddressPort = jsonFileContent["addressPort"].(string)
-	C.Config.Sni = jsonFileContent["sni"].(string)
-	C.Config.WsHeaderPath = jsonFileContent["wsHeaderPath"].(string)
-	C.Config.LocalPort = int(jsonFileContent["localPort"].(float64))
-	C.Config.FrontingTimeout = jsonFileContent["frontingTimeout"].(float64)
-	C.Config.NTries = int(jsonFileContent["nTries"].(float64))
-	C.Config.Writer = jsonFileContent["writer"].(string)
+	// Safely extract string values with nil checks
+	if val, ok := jsonFileContent["userId"]; ok && val != nil {
+		C.Config.UserId = val.(string)
+	} else {
+		fmt.Printf("Error: 'userId' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["wsHeaderHost"]; ok && val != nil {
+		C.Config.WsHeaderHost = val.(string)
+	} else {
+		fmt.Printf("Error: 'wsHeaderHost' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["addressPort"]; ok && val != nil {
+		C.Config.AddressPort = val.(string)
+	} else {
+		fmt.Printf("Error: 'addressPort' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["sni"]; ok && val != nil {
+		C.Config.Sni = val.(string)
+	} else {
+		fmt.Printf("Error: 'sni' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["wsHeaderPath"]; ok && val != nil {
+		C.Config.WsHeaderPath = val.(string)
+	} else {
+		fmt.Printf("Error: 'wsHeaderPath' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["localPort"]; ok && val != nil {
+		C.Config.LocalPort = int(val.(float64))
+	} else {
+		fmt.Printf("Error: 'localPort' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["frontingTimeout"]; ok && val != nil {
+		C.Config.FrontingTimeout = val.(float64)
+	} else {
+		fmt.Printf("Error: 'frontingTimeout' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["testUrl"]; ok && val != nil {
+		C.Config.TestUrl = val.(string)
+	} else {
+		C.Config.TestUrl = "http://google.com/generate_204" // Default if not in JSON
+	}
+
+	if val, ok := jsonFileContent["nTries"]; ok && val != nil {
+		C.Config.NTries = int(val.(float64))
+	} else {
+		fmt.Printf("Error: 'nTries' field is missing or null in config file\n")
+		os.Exit(1)
+	}
+
+	if val, ok := jsonFileContent["writer"]; ok && val != nil {
+		C.Config.Writer = val.(string)
+	} else {
+		fmt.Printf("Error: 'writer' field is missing or null in config file\n")
+		os.Exit(1)
+	}
 
 	// Only print configuration if not using TUI
 	// TUI will handle its own configuration display
@@ -176,6 +238,7 @@ func (C Configuration) PrintInformationForTUI(tuiController interface{}) {
 		}
 		controller.SetConfig("upload_test", fmt.Sprintf("%v", C.Config.DoUploadTest))
 		controller.SetConfig("fronting_test", fmt.Sprintf("%v", C.Config.DoFrontingTest))
+		controller.SetConfig("test_url", C.Config.TestUrl)
 		controller.SetConfig("download_speed", fmt.Sprintf("%.0f kBps", C.Worker.Download.MinDlSpeed))
 		controller.SetConfig("upload_speed", fmt.Sprintf("%.0f kBps", C.Worker.Upload.MinUlSpeed))
 		controller.SetConfig("threads", fmt.Sprintf("%d", C.Worker.Threads))

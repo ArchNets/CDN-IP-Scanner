@@ -91,6 +91,11 @@ func run() *cobra.Command {
 				config.Shuffling = shuffle
 				config.LogLevel = Loglevel
 
+				// Handle test URL
+				if testUrl != "http://google.com/generate_204" || config.Config.TestUrl == "" {
+					config.Config.TestUrl = testUrl
+				}
+
 				// For nTries and writer, only override if explicitly set via command line
 				// (Check if they differ from their defaults)
 				if nTries != 1 { // Default for nTries is 1
@@ -104,6 +109,7 @@ func run() *cobra.Command {
 				config = configuration.Configuration{
 					Config: configuration.ConfigStruct{
 						FrontingTimeout: frontingTimeout,
+						TestUrl:         testUrl,
 						NTries:          nTries,
 						Writer:          writerType,
 						TestBool: configuration.TestBool{

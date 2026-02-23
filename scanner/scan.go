@@ -133,10 +133,25 @@ func scanner(ip string, Config config.Configuration, Worker config.Worker, worke
 				continue // Try again instead of returning nil
 			}
 		} else {
-			// Basic connectivity test via download attempt
+			// Basic connectivity test using the new TestUrl
 			UpdateTUIWorkerStatus(workerID, ip, "Testing connectivity...")
-			// Instead of fronting test, do a quick VPN connectivity test
-			// by attempting a small download through the VPN to verify the VLESS+XHTTP connection
+
+			// Give a basic 5-second timeout for the quick connectivity test
+			connectivity := speedtest.ConnectivityTest(Config.Config.TestUrl, proxies, time.Duration(5))
+			if !connectivity {
+				lastScanError = "Connectivity test failed"
+				ld := logger.ScannerManage{
+					IP:      ip,
+					Status:  logger.FailStatus,
+					Message: "Connectivity test failed (" + Config.Config.TestUrl + ")",
+				}
+				PrintLog(ld)
+				// Log retry attempt only if there are multiple tries
+				if Config.Config.NTries > 1 {
+					UpdateTUIRetryAttempt(workerID, ip, "Connectivity test failed")
+				}
+				continue // Try again instead of returning nil
+			}
 		}
 
 		// Step 2: Download speed test
@@ -224,6 +239,7 @@ func uploader(ip string, Upload *config.Upload, proxies map[string]string, resul
 	}
 
 	if uploadLatency >= Upload.MaxUlLatency {
+		lastScanError = fmt.Sprintf("High upload latency: %.2fs > %.2fs", uploadLatency, Upload.MaxUlLatency)
 		ld := logger.ScannerManage{
 			IP:      ip,
 			Status:  logger.FailStatus,
@@ -236,6 +252,7 @@ func uploader(ip string, Upload *config.Upload, proxies map[string]string, resul
 	uploadSpeedKbps := uploadSpeed / 8 * 1000
 
 	if uploadSpeedKbps <= Upload.MinUlSpeed {
+		lastScanError = fmt.Sprintf("Upload too slow: %.2f kBps < %.2f kBps", uploadSpeedKbps, Upload.MinUlSpeed)
 		ld := logger.ScannerManage{
 			IP:     ip,
 			Status: logger.FailStatus,

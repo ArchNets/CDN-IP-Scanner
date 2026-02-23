@@ -24,6 +24,7 @@ type ConfigStruct struct {
 	FrontingTimeout float64 // seconds
 	NTries          int
 	Writer          string
+	TestUrl         string
 	TestBool
 }
 

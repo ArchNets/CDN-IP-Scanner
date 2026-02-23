@@ -13,6 +13,7 @@ var Loglevel string
 var doUploadTest bool
 var fronting bool
 var shuffle bool
+var testUrl string
 
 var minDLSpeed float64
 var minULSpeed float64
@@ -42,8 +43,9 @@ func RegisterCommands(rootCmd *cobra.Command) {
 	rootCmd.PersistentFlags().Float64Var(&maxDLTime, "download-time", 2, "Maximum (effective, excluding http time) time to spend for each download")
 	rootCmd.PersistentFlags().Float64Var(&maxULTime, "upload-time", 2, "Maximum (effective, excluding http time) time to spend for each upload")
 	rootCmd.PersistentFlags().Float64Var(&frontingTimeout, "fronting-timeout", 1.0, "Maximum time to wait for fronting response")
-	rootCmd.PersistentFlags().Float64Var(&maxDLLatency, "download-latency", 3.0, "Maximum allowed latency for download")
+	rootCmd.PersistentFlags().Float64Var(&maxDLLatency, "download-latency", 5.0, "Maximum allowed latency for download")
 	rootCmd.PersistentFlags().Float64Var(&maxULLatency, "upload-latency", 3.0, "Maximum allowed latency for upload")
+	rootCmd.PersistentFlags().StringVar(&testUrl, "test-url", "http://google.com/generate_204", "URL to test for connectivity before payload transfer")
 	rootCmd.PersistentFlags().StringVar(&writerType, "writer", "csv", "Custom output writer for writing interim results. [csv/json]")
 
 }

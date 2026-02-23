@@ -1,11 +1,8 @@
 package speedtest
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -13,7 +10,9 @@ import (
 // UploadSpeedTest conducts a upload speed test on ip and returns upload speed and upload latency
 func UploadSpeedTest(nBytes int, proxies map[string]string, timeout time.Duration) (float64, float64, error) {
 	startTime := time.Now()
-	req, err := http.NewRequest("POST", "https://speed.cloudflare.com/__up", strings.NewReader(strings.Repeat("0", nBytes)))
+	// Use postman-echo rather than speed.cloudflare.com/__up to prevent EOFs
+	// when sending custom payload sizes over Xray/SOCKS5.
+	req, err := http.NewRequest("POST", "https://postman-echo.com/post", strings.NewReader(strings.Repeat("0", nBytes)))
 	if err != nil {
 		return 0, 0, err
 	}
@@ -33,29 +32,15 @@ func UploadSpeedTest(nBytes int, proxies map[string]string, timeout time.Duratio
 	if err != nil {
 		return 0, 0, err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Errorf("error occured when closing upload body %v", err)
-		}
-	}(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	totalTime := time.Since(startTime).Seconds()
-	cfTime := float64(0)
 
-	serverTiming := req.Header.Get("Server-Timing")
-	if serverTiming != "" {
-		timings := strings.Split(serverTiming, "=")
-		if len(timings) > 1 {
-			cfTiming, err := strconv.ParseFloat(timings[1], 64)
-			if err == nil {
-				cfTime = cfTiming / 1000.0
-				fmt.Println(cfTime)
-			}
-		}
+	// Since we are no longer using Cloudflare for upload, we just use totalTime as latency.
+	latency := totalTime
 
-	}
-	latency := totalTime - cfTime
 	var mb float64 = float64(nBytes) * 8 / (1000000.0)
 	uploadSpeed := mb / latency
 
