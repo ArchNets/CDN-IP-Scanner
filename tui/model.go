@@ -381,7 +381,7 @@ func (m *Model) View() string {
 	// Count active workers
 	activeWorkers := 0
 	for _, worker := range m.stats.Workers {
-		if time.Since(worker.LastSeen) < 3*time.Second {
+		if time.Since(worker.LastSeen) < 15*time.Second {
 			activeWorkers++
 		}
 	}
@@ -416,7 +416,7 @@ func (m *Model) View() string {
 	workerContent := ""
 	for i := 0; i < m.stats.TotalWorkers; i++ {
 		if worker, exists := m.stats.Workers[i]; exists {
-			isActive := time.Since(worker.LastSeen) < 2*time.Second
+			isActive := time.Since(worker.LastSeen) < 15*time.Second
 			statusIcon := "⚡"
 			statusColor := green
 			currentIP := worker.CurrentIP
