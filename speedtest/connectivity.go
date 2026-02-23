@@ -1,6 +1,7 @@
 package speedtest
 
 import (
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/url"
@@ -21,8 +22,13 @@ func ConnectivityTest(testUrl string, proxies map[string]string, timeout time.Du
 	}
 
 	client := &http.Client{
-		Timeout:   timeout * time.Second,
-		Transport: &http.Transport{Proxy: http.ProxyURL(proxy)},
+		Timeout: timeout * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxy),
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
 
 	resp, err := client.Do(req)
