@@ -2,10 +2,10 @@ package scanner
 
 import (
 	config "CFScanner/configuration"
+	"CFScanner/logger"
 	"CFScanner/utils"
 	"encoding/csv"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -68,8 +68,9 @@ func WriteCSV(file string, result []interface{}) {
 
 func (c CSV) Output() {
 
-	log.Printf("%s[OK] %-15s %s avg_down_speed: %7.2fmbps avg_up_speed: %7.4fmbps avg_down_latency: %6.2fms avg_up_latency: %6.2fms avg_down_jitter: %6.2fms avg_up_jitter: %4.2fms%s\n",
+	msg := fmt.Sprintf("%s[OK]%s %-15s %s avg_down_speed: %7.2fmbps avg_up_speed: %7.4fmbps avg_down_latency: %6.2fms avg_up_latency: %6.2fms avg_down_jitter: %6.2fms avg_up_jitter: %4.2fms%s",
 		utils.Colors.OKGREEN,
+		utils.Colors.ENDC,
 		c.res.IP,
 		utils.Colors.OKBLUE,
 		c.MeanDownloadSpeed,
@@ -80,4 +81,12 @@ func (c CSV) Output() {
 		c.UploadMeanJitter,
 		utils.Colors.ENDC,
 	)
+
+	// Print exactly like we were to log so it stays in the TUI stream safely
+	ls := logger.ScannerManage{
+		IP:      c.res.IP,
+		Status:  logger.OKStatus,
+		Message: msg,
+	}
+	PrintLog(ls)
 }

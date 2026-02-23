@@ -55,8 +55,8 @@ To see all available options:
 # Load configurations file with subnet file and testing each ip 3 times
 ./CFScanner --config config.real --subnets 172.20.0.0/24 --threads 4 --tries 3
 
-# Load configurations file with subnet file and using vpn mode
-./CFScanner --config config.real --subnets 172.20.0.0/24 --vpn
+# Load configurations file with subnet file and using vpn mode (recommanded)
+./CFScanner --config config.real --subnets 172.20.0.0/24 --vpn --test-url "http://google.com/generate_204" 
 ```
 
 ### Configuration

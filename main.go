@@ -1,11 +1,14 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
+	"io"
+	"log"
 	"os"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 // Program Info
@@ -30,6 +33,10 @@ func main() {
 	rootCmd := run()
 
 	RegisterCommands(rootCmd)
+
+	// Disable go's internal http2 error spam by redirecting standard log output
+	// if we are entering the TUI or general scanning phase.
+	log.SetOutput(io.Discard)
 
 	if len(os.Args) <= 1 {
 		err := rootCmd.Help()
